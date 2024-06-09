@@ -1,1 +1,69 @@
 from pydub import AudioSegment
+from pydub.utils import make_chunks
+import os
+
+def match_target_amplitude(audio, target_dBFS):
+    """ 
+    given an audio, makes it so that it matches the target amplitude (loudness), effectively
+    normalizing the audio files
+    """
+    change_in_dBFS = target_dBFS - audio.dBFS #dbfs means decibels relative to full scale
+    return audio.apply_gain(change_in_dBFS)
+
+def scan_audios(audio_path):
+    """
+    given a path, yields a generator that returns the title and AudioSegment object of the file.
+
+    for own clarity:
+    loading the audio into an AudioSegment allows it to be manipulated by python. it also
+    stores attributes like duration and channels.
+    """
+    for filename in os.listdir(audio_path):
+        if filename.lower().endswith('.mp3'):
+            fullpath = os.path.join(audio_path, filename)
+            audio = AudioSegment.from_file(fullpath)
+            yield filename, audio
+
+def normalize_audios(audio_iterator, target_dBFS):
+    """
+    given an AudioSegment iterator (from scan_audios) and a target volume
+
+    returns an iterator that returns the normalized audios. the audios are normalized by amplitude
+    """
+    for filename, audio in audio_iterator:
+        yield filename, match_target_amplitude(audio, target_dBFS)
+
+def export_normalized_audios(norm_iterator, output_path):
+    """
+    given a normalized audio iterator and an output path
+
+    exports the audio files to the path
+    """
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    for filename, audio in norm_iterator:
+        audio.export(os.path.join(output_path, f"norm_{filename}"), format="mp3")
+
+
+def normalization_process(audio_path, output_path, target_dBFS = -20.0):
+    """
+    given an audio path of audio files, a target output path, and an optional target volume
+
+    exports normalized versions of the audio files in the audio path to the desired
+    output path
+    """
+    audio_gen = scan_audios(audio_path) #creates an audio generator
+    normalized_gen = normalize_audios(audio_gen, target_dBFS) #normalizes the audio generator
+    export_normalized_audios(normalized_gen, output_path) #exports the normalized audios from the normalized generator
+
+
+normalization_process("/Users/rgu/Desktop/UROPs/UROP4/test_audios", "/Users/rgu/Desktop/UROPs/UROP4/test_outputs")
+#its working. i can tell by sheer ear testing
+
+
+
+
+
+
+
+
