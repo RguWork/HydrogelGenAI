@@ -1,64 +1,27 @@
-from pydub import AudioSegment
-from pydub.utils import make_chunks
 import os
+import ffmpeg
 
-def match_target_amplitude(audio, target_dBFS):
+def loudness_normalization(input_filename, output_filename, target_lufs):
     """ 
-    given an audio, makes it so that it matches the target amplitude (loudness), effectively
-    normalizing the audio files
+    given an 
     """
-    change_in_dBFS = target_dBFS - audio.dBFS #dbfs means decibels relative to full scale
-    return audio.apply_gain(change_in_dBFS)
+    ffmpeg.input(input_filename).audio.filter('loudnorm', I=target_lufs).output(output_filename).run()
 
-def scan_audios(audio_path):
+def normalize_audios(audio_path, output_path, target_lufs = -14.0):
     """
-    given a path, yields a generator that returns the title and AudioSegment object of the file.
+    given an audio path, output path, and target loudness units full scale (LUFS). target_lufs
+    is by default set to -14, which is standard for audio streaming services like spotify or youtube
 
-    for own clarity:
-    loading the audio into an AudioSegment allows it to be manipulated by python. it also
-    stores attributes like duration and channels.
-    """
-    for filename in os.listdir(audio_path):
-        if filename.lower().endswith('.mp3'):
-            fullpath = os.path.join(audio_path, filename)
-            audio = AudioSegment.from_file(fullpath)
-            yield filename, audio
-
-def normalize_audios(audio_iterator, target_dBFS):
-    """
-    given an AudioSegment iterator (from scan_audios) and a target volume
-
-    returns an iterator that returns the normalized audios. the audios are normalized by amplitude
-    """
-    for filename, audio in audio_iterator:
-        yield filename, match_target_amplitude(audio, target_dBFS)
-
-def export_normalized_audios(norm_iterator, output_path):
-    """
-    given a normalized audio iterator and an output path
-
-    exports the audio files to the path
+    applies loudness normalization across all the mp3 files in the given path and exports
+    them to the output path
     """
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    for filename, audio in norm_iterator:
-        audio.export(os.path.join(output_path, f"norm_{filename}"), format="mp3")
+    for filename in os.listdir(audio_path):
+        if filename.lower().endswith('.mp3'):
+            loudness_normalization(os.path.join(audio_path, filename), os.path.join(output_path, f"norm_{filename}"), target_lufs)
 
-
-def normalization_process(audio_path, output_path, target_dBFS = -20.0):
-    """
-    given an audio path of audio files, a target output path, and an optional target volume
-
-    exports normalized versions of the audio files in the audio path to the desired
-    output path
-    """
-    audio_gen = scan_audios(audio_path) #creates an audio generator
-    normalized_gen = normalize_audios(audio_gen, target_dBFS) #normalizes the audio generator
-    export_normalized_audios(normalized_gen, output_path) #exports the normalized audios from the normalized generator
-
-
-normalization_process("/Users/rgu/Desktop/UROPs/UROP4/test_audios", "/Users/rgu/Desktop/UROPs/UROP4/test_outputs")
-#its working. i can tell by sheer ear testing
+normalize_audios("/Users/rgu/Desktop/UROPs/UROP4/test_audios", "/Users/rgu/Desktop/UROPs/UROP4/test_outputs")
 
 
 
