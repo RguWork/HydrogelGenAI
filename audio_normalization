@@ -3,7 +3,8 @@ import ffmpeg
 
 def loudness_normalization(input_filename, output_filename, target_lufs):
     """ 
-    given an 
+    given an input file path and output file path and target_lufs, applies loudness normalization on
+    the input file to the target lufs and exports it to the output path
     """
     ffmpeg.input(input_filename).audio.filter('loudnorm', I=target_lufs).output(output_filename).run()
 
